@@ -1,6 +1,6 @@
 {
 	"name": "@handfish/drizzle-effect",
-	"version": "0.0.8",
+	"version": "0.0.15",
 	"description": "Generate `effect` schemas from Drizzle ORM schemas",
 	"type": "module",
 	"scripts": {

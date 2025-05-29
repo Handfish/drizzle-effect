@@ -1,8 +1,8 @@
 {
 	"extends": "../tsconfig.json",
 	"compilerOptions": {
-     "strict": true,
-    "exactOptionalPropertyTypes": true,
+		"strict": true,
+		"exactOptionalPropertyTypes": true,
 		"outDir": "dist",
 		"baseUrl": ".",
 		"declaration": true,

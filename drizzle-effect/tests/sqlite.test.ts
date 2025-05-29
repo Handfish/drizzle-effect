@@ -1,232 +1,225 @@
-import { Schema } from "effect";
-import {
-  blob,
-  integer,
-  numeric,
-  real,
-  sqliteTable,
-  text,
-} from "drizzle-orm/sqlite-core";
-import { Either } from "effect";
-import { expect, test } from "vitest";
-import { createInsertSchema, createSelectSchema, Json } from "../src/index.ts";
-import { expectSchemaShape } from "./utils.ts";
+import { blob, integer, numeric, real, sqliteTable, text } from 'drizzle-orm/sqlite-core';
+import { Schema } from 'effect';
+import { Either } from 'effect';
+import { expect, test } from 'vitest';
+import { createInsertSchema, createSelectSchema, Json } from '../src/index.ts';
+import { expectSchemaShape } from './utils.ts';
 
 const blobJsonSchema = Schema.Struct({
-  foo: Schema.String,
+	foo: Schema.String,
 });
 
-const users = sqliteTable("users", {
-  id: integer("id").primaryKey(),
-  boolean: integer("boolean", { mode: "boolean" }).notNull(),
-  blobJson: blob("blob", { mode: "json" })
-    .$type<Schema.Schema.Type<typeof blobJsonSchema>>()
-    .notNull(),
-  blobBigInt: blob("blob", { mode: "bigint" }).notNull(),
+const users = sqliteTable('users', {
+	id: integer('id').primaryKey(),
+	boolean: integer('boolean', { mode: 'boolean' }).notNull(),
+	blobJson: blob('blob', { mode: 'json' })
+		.$type<Schema.Schema.Type<typeof blobJsonSchema>>()
+		.notNull(),
+	blobBigInt: blob('blob', { mode: 'bigint' }).notNull(),
 
-  numeric: numeric("numeric").notNull(),
-  createdAt: integer("created_at", { mode: "timestamp" }).notNull(),
-  createdAtMs: integer("created_at_ms", { mode: "timestamp_ms" }).notNull(),
-  real: real("real").notNull(),
-  text: text("text", { length: 255 }),
-  role: text("role", { enum: ["admin", "user"] })
-    .notNull()
-    .default("user"),
+	numeric: numeric('numeric').notNull(),
+	createdAt: integer('created_at', { mode: 'timestamp' }).notNull(),
+	createdAtMs: integer('created_at_ms', { mode: 'timestamp_ms' }).notNull(),
+	real: real('real').notNull(),
+	text: text('text', { length: 255 }),
+	role: text('role', { enum: ['admin', 'user'] })
+		.notNull()
+		.default('user'),
 });
 
 const testUser = {
-  id: 1,
-  blobJson: { foo: "bar" },
-  blobBigInt: BigInt(123),
-  numeric: "123.45",
-  createdAt: new Date(),
-  createdAtMs: new Date(),
-  boolean: true,
-  real: 123.45,
-  text: "foobar",
-  role: "admin" as const,
+	id: 1,
+	blobJson: { foo: 'bar' },
+	blobBigInt: BigInt(123),
+	numeric: '123.45',
+	createdAt: new Date(),
+	createdAtMs: new Date(),
+	boolean: true,
+	real: 123.45,
+	text: 'foobar',
+	role: 'admin' as const,
 };
 
-test("is an instance of `Schema.Struct`", () => {
-  const schema = createInsertSchema(users).pick("role", "boolean");
+test('is an instance of `Schema.Struct`', () => {
+	const schema = createInsertSchema(users).pick('role', 'boolean');
 
-  const decode = Schema.decodeEither(schema);
+	const decode = Schema.decodeEither(schema);
 
-  expect(Either.isRight(decode(testUser))).toBeTruthy();
-  expect(Either.isRight(decode({ boolean: false, role: "user" }))).toBeTruthy();
+	expect(Either.isRight(decode(testUser))).toBeTruthy();
+	expect(Either.isRight(decode({ boolean: false, role: 'user' }))).toBeTruthy();
 
-  expect(Either.isRight(Schema.decodeUnknownEither(schema)({}))).toBeFalsy();
-  expect(
-    Either.isRight(
-      decode(testUser, {
-        onExcessProperty: "error",
-      }),
-    ),
-  ).toBeFalsy();
+	expect(Either.isRight(Schema.decodeUnknownEither(schema)({}))).toBeFalsy();
+	expect(
+		Either.isRight(
+			decode(testUser, {
+				onExcessProperty: 'error',
+			}),
+		),
+	).toBeFalsy();
 });
 
-test("users insert valid user", () => {
-  const schema = createInsertSchema(users);
+test('users insert valid user', () => {
+	const schema = createInsertSchema(users);
 
-  const result = Schema.decodeEither(schema)(testUser);
+	const result = Schema.decodeEither(schema)(testUser);
 
-  expect(Either.isRight(result)).toBeTruthy();
+	expect(Either.isRight(result)).toBeTruthy();
 });
 
-test("users insert invalid text length", () => {
-  const schema = createInsertSchema(users);
+test('users insert invalid text length', () => {
+	const schema = createInsertSchema(users);
 
-  const result = Schema.decodeEither(schema)({
-    ...testUser,
-    text: "a".repeat(256),
-  });
+	const result = Schema.decodeEither(schema)({
+		...testUser,
+		text: 'a'.repeat(256),
+	});
 
-  expect(Either.isRight(result)).toBeFalsy();
+	expect(Either.isRight(result)).toBeFalsy();
 });
 
-test("users insert schema", (t) => {
-  const actual = createInsertSchema(users, {
-    id: ({ id }) => id.pipe(Schema.positive()),
-    // without this ovverride I'm getting max call stack exc in tests
-    blobJson: blobJsonSchema,
-    role: Schema.Literal("admin", "manager", "user"),
-  });
+test('users insert schema', (t) => {
+	const actual = createInsertSchema(users, {
+		id: ({ id }) => id.pipe(Schema.positive()),
+		// without this ovverride I'm getting max call stack exc in tests
+		blobJson: blobJsonSchema,
+		role: Schema.Literal('admin', 'manager', 'user'),
+	});
 
-  () => {
-    {
-      createInsertSchema(users, {
-        // @ts-expect-error (unknown property)
-        foobar: Schema.Number,
-      });
-    }
+	(() => {
+		{
+			createInsertSchema(users, {
+				// @ts-expect-error (unknown property)
+				foobar: Schema.Number,
+			});
+		}
 
-    {
-      createInsertSchema(users, {
-        // @ts-expect-error (invalid type)
-        id: 123,
-      });
-    }
-  };
+		{
+			createInsertSchema(users, {
+				// @ts-expect-error (invalid type)
+				id: 123,
+			});
+		}
+	});
 
-  const expected = Schema.Struct({
-    id: Schema.optional(Schema.Number.pipe(Schema.positive())),
-    boolean: Schema.Boolean,
-    blobJson: blobJsonSchema,
-    blobBigInt: Schema.BigIntFromSelf,
-    numeric: Schema.String,
-    createdAt: Schema.DateFromSelf,
-    createdAtMs: Schema.DateFromSelf,
-    real: Schema.Number,
-    text: Schema.optional(
-      Schema.NullOr(Schema.String.pipe(Schema.maxLength(255))),
-    ),
-    role: Schema.optional(Schema.Literal("admin", "manager", "user")),
-  });
+	const expected = Schema.Struct({
+		id: Schema.optional(Schema.Number.pipe(Schema.positive())),
+		boolean: Schema.Boolean,
+		blobJson: blobJsonSchema,
+		blobBigInt: Schema.BigIntFromSelf,
+		numeric: Schema.String,
+		createdAt: Schema.DateFromSelf,
+		createdAtMs: Schema.DateFromSelf,
+		real: Schema.Number,
+		text: Schema.optional(
+			Schema.NullOr(Schema.String.pipe(Schema.maxLength(255))),
+		),
+		role: Schema.optional(Schema.Literal('admin', 'manager', 'user')),
+	});
 
-  type actual = {
-    readonly id?: number | undefined;
-    readonly blobJson: {
-      readonly foo: string;
-    };
-    readonly blobBigInt: bigint;
-    readonly numeric: string;
-    readonly createdAt: Date;
-    readonly createdAtMs: Date;
-    readonly real: number;
-    readonly text?: string | null | undefined;
-    readonly role?: "admin" | "user" | "manager" | undefined;
-  };
-  type expected = {
-    readonly id?: number | null | undefined;
-    readonly blobJson: {
-      readonly foo: string;
-    };
-    readonly blobBigInt: bigint;
-    readonly numeric: string;
-    readonly createdAt: Date;
-    readonly createdAtMs: Date;
-    readonly real: number;
-    readonly text?: string | null | undefined;
-    readonly role?: "admin" | "user" | "manager" | null | undefined;
-  };
+	type actual = {
+		readonly id?: number | undefined;
+		readonly blobJson: {
+			readonly foo: string;
+		};
+		readonly blobBigInt: bigint;
+		readonly numeric: string;
+		readonly createdAt: Date;
+		readonly createdAtMs: Date;
+		readonly real: number;
+		readonly text?: string | null | undefined;
+		readonly role?: 'admin' | 'user' | 'manager' | undefined;
+	};
+	type expected = {
+		readonly id?: number | null | undefined;
+		readonly blobJson: {
+			readonly foo: string;
+		};
+		readonly blobBigInt: bigint;
+		readonly numeric: string;
+		readonly createdAt: Date;
+		readonly createdAtMs: Date;
+		readonly real: number;
+		readonly text?: string | null | undefined;
+		readonly role?: 'admin' | 'user' | 'manager' | null | undefined;
+	};
 
-  expectSchemaShape(t, expected).from(actual);
+	expectSchemaShape(t, expected).from(actual);
 });
 
-test("users insert schema w/ defaults", (t) => {
-  const actual = createInsertSchema(users);
+test('users insert schema w/ defaults', (t) => {
+	const actual = createInsertSchema(users);
 
-  const expected = Schema.Struct({
-    id: Schema.optional(Schema.Number),
-    boolean: Schema.Boolean,
-    blobJson: Json,
-    blobBigInt: Schema.BigIntFromSelf,
-    numeric: Schema.String,
-    createdAt: Schema.DateFromSelf,
-    createdAtMs: Schema.DateFromSelf,
-    real: Schema.Number,
-    text: Schema.optional(
-      Schema.NullOr(Schema.String.pipe(Schema.maxLength(255))),
-    ),
-    role: Schema.optional(Schema.Literal("admin", "user")),
-  });
+	const expected = Schema.Struct({
+		id: Schema.optional(Schema.Number),
+		boolean: Schema.Boolean,
+		blobJson: Json,
+		blobBigInt: Schema.BigIntFromSelf,
+		numeric: Schema.String,
+		createdAt: Schema.DateFromSelf,
+		createdAtMs: Schema.DateFromSelf,
+		real: Schema.Number,
+		text: Schema.optional(
+			Schema.NullOr(Schema.String.pipe(Schema.maxLength(255))),
+		),
+		role: Schema.optional(Schema.Literal('admin', 'user')),
+	});
 
-  expectSchemaShape(t, expected).from(actual);
+	expectSchemaShape(t, expected).from(actual);
 });
 
-test("users select schema w/ defaults", (t) => {
-  const actual = createSelectSchema(users);
+test('users select schema w/ defaults', (t) => {
+	const actual = createSelectSchema(users);
 
-  const expected = Schema.Struct({
-    id: Schema.Number,
-    boolean: Schema.Boolean,
-    blobJson: Json,
-    blobBigInt: Schema.BigIntFromSelf,
-    numeric: Schema.String,
-    createdAt: Schema.DateFromSelf,
-    createdAtMs: Schema.DateFromSelf,
-    real: Schema.Number,
-    text: (Schema.NullOr(Schema.String.pipe(Schema.maxLength(255)))),
-    role: (Schema.Literal("admin", "user")),
-  });
+	const expected = Schema.Struct({
+		id: Schema.Number,
+		boolean: Schema.Boolean,
+		blobJson: Json,
+		blobBigInt: Schema.BigIntFromSelf,
+		numeric: Schema.String,
+		createdAt: Schema.DateFromSelf,
+		createdAtMs: Schema.DateFromSelf,
+		real: Schema.Number,
+		text: (Schema.NullOr(Schema.String.pipe(Schema.maxLength(255)))),
+		role: (Schema.Literal('admin', 'user')),
+	});
 
-  expectSchemaShape(t, expected).from(actual);
+	expectSchemaShape(t, expected).from(actual);
 });
 
-test("users select schema", (t) => {
-  const actual = createSelectSchema(users, {
-    blobJson: Json,
-    role: Schema.Literal("admin", "manager", "user"),
-  });
+test('users select schema', (t) => {
+	const actual = createSelectSchema(users, {
+		blobJson: Json,
+		role: Schema.Literal('admin', 'manager', 'user'),
+	});
 
-  () => {
-    {
-      createSelectSchema(users, {
-        // @ts-expect-error (missing property)
-        foobar: z.number(),
-      });
-    }
+	(() => {
+		{
+			createSelectSchema(users, {
+				// @ts-expect-error (missing property)
+				foobar: z.number(),
+			});
+		}
 
-    {
-      createSelectSchema(users, {
-        // @ts-expect-error (invalid type)
-        id: 123,
-      });
-    }
-  };
+		{
+			createSelectSchema(users, {
+				// @ts-expect-error (invalid type)
+				id: 123,
+			});
+		}
+	});
 
-  const expected = Schema.Struct({
-    id: Schema.Number,
-    boolean: Schema.Boolean,
-    blobJson: Json,
-    blobBigInt: Schema.BigIntFromSelf,
-    numeric: Schema.String,
-    createdAt: Schema.DateFromSelf,
-    createdAtMs: Schema.DateFromSelf,
-    real: Schema.Number,
-    text: Schema.NullOr(Schema.String.pipe(Schema.maxLength(255))),
-    role: Schema.Literal("admin", "manager", "user"),
-  });
+	const expected = Schema.Struct({
+		id: Schema.Number,
+		boolean: Schema.Boolean,
+		blobJson: Json,
+		blobBigInt: Schema.BigIntFromSelf,
+		numeric: Schema.String,
+		createdAt: Schema.DateFromSelf,
+		createdAtMs: Schema.DateFromSelf,
+		real: Schema.Number,
+		text: Schema.NullOr(Schema.String.pipe(Schema.maxLength(255))),
+		role: Schema.Literal('admin', 'manager', 'user'),
+	});
 
-  expectSchemaShape(t, expected).from(actual);
+	expectSchemaShape(t, expected).from(actual);
 });
