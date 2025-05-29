@@ -31,7 +31,7 @@ import {
 import { Schema } from 'effect';
 import { Either } from 'effect';
 import { expect, test } from 'vitest';
-import { createInsertSchema, createSelectSchema, Json } from '../src/index.ts';
+import { createInsertSchema, createSelectSchema, JsonValue } from '../src/index.ts';
 import { expectSchemaShape } from './utils.ts';
 
 const customInt = customType<{ data: number }>({
@@ -202,7 +202,7 @@ test('insert schema', (t) => {
 		enum: Schema.Literal('a', 'b', 'c'),
 		float: Schema.Number,
 		int: Schema.Number,
-		json: Json,
+		json: JsonValue,
 		mediumint: Schema.Number,
 		real: Schema.Number,
 		serial: Schema.optional(Schema.Number),
@@ -249,7 +249,7 @@ test('select schema', (t) => {
 		enum: Schema.Literal('a', 'b', 'c'),
 		float: Schema.Number,
 		int: Schema.Number,
-		json: Json,
+		json: JsonValue,
 		mediumint: Schema.Number,
 		real: Schema.Number,
 		serial: Schema.Number,
@@ -298,7 +298,7 @@ test('select schema w/ refine', (t) => {
 		enum: Schema.Literal('a', 'b', 'c'),
 		float: Schema.Number,
 		int: Schema.Number,
-		json: Json,
+		json: JsonValue,
 		mediumint: Schema.Number,
 		real: Schema.Number,
 		serial: Schema.Number,

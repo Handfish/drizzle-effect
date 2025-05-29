@@ -2,7 +2,7 @@ import { blob, integer, numeric, real, sqliteTable, text } from 'drizzle-orm/sql
 import { Schema } from 'effect';
 import { Either } from 'effect';
 import { expect, test } from 'vitest';
-import { createInsertSchema, createSelectSchema, Json } from '../src/index.ts';
+import { createInsertSchema, createSelectSchema, JsonValue } from '../src/index.ts';
 import { expectSchemaShape } from './utils.ts';
 
 const blobJsonSchema = Schema.Struct({
@@ -152,7 +152,7 @@ test('users insert schema w/ defaults', (t) => {
 	const expected = Schema.Struct({
 		id: Schema.optional(Schema.Number),
 		boolean: Schema.Boolean,
-		blobJson: Json,
+		blobJson: JsonValue,
 		blobBigInt: Schema.BigIntFromSelf,
 		numeric: Schema.String,
 		createdAt: Schema.DateFromSelf,
@@ -173,7 +173,7 @@ test('users select schema w/ defaults', (t) => {
 	const expected = Schema.Struct({
 		id: Schema.Number,
 		boolean: Schema.Boolean,
-		blobJson: Json,
+		blobJson: JsonValue,
 		blobBigInt: Schema.BigIntFromSelf,
 		numeric: Schema.String,
 		createdAt: Schema.DateFromSelf,
@@ -188,7 +188,7 @@ test('users select schema w/ defaults', (t) => {
 
 test('users select schema', (t) => {
 	const actual = createSelectSchema(users, {
-		blobJson: Json,
+		blobJson: JsonValue,
 		role: Schema.Literal('admin', 'manager', 'user'),
 	});
 
@@ -211,7 +211,7 @@ test('users select schema', (t) => {
 	const expected = Schema.Struct({
 		id: Schema.Number,
 		boolean: Schema.Boolean,
-		blobJson: Json,
+		blobJson: JsonValue,
 		blobBigInt: Schema.BigIntFromSelf,
 		numeric: Schema.String,
 		createdAt: Schema.DateFromSelf,
