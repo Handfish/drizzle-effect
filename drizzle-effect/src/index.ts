@@ -215,12 +215,12 @@ export type GetSchemaForType<TColumn extends Drizzle.Column> =
 	: never
 	: never;
 
-
-type MapInsertColumnToPropertySignature<TColumn extends Drizzle.Column> = TColumn['_']['notNull'] extends false
+// Modified to use TypeScript property key instead of database column name for property signature key
+type MapInsertColumnToPropertySignature<TColumn extends Drizzle.Column, TPropertyKey extends string> = TColumn['_']['notNull'] extends false
 	? Schema.PropertySignature<
 		'?:',
 		Schema.Schema.Type<GetSchemaForType<TColumn>> | undefined | null,
-		TColumn['_']['name'],
+		TPropertyKey, // Use the TypeScript property key here instead of column name
 		'?:',
 		Schema.Schema.Encoded<GetSchemaForType<TColumn>> | undefined | null,
 		false,
@@ -229,7 +229,7 @@ type MapInsertColumnToPropertySignature<TColumn extends Drizzle.Column> = TColum
 	: TColumn['_']['hasDefault'] extends true ? Schema.PropertySignature<
 		'?:',
 		Schema.Schema.Type<GetSchemaForType<TColumn>> | undefined,
-		TColumn['_']['name'],
+		TPropertyKey, // Use the TypeScript property key here instead of column name
 		'?:',
 		Schema.Schema.Encoded<GetSchemaForType<TColumn>> | undefined,
 		true,
@@ -241,9 +241,11 @@ type MapSelectColumnToPropertySignature<TColumn extends Drizzle.Column> = TColum
 	? Schema.Schema<Schema.Schema.Type<GetSchemaForType<TColumn>> | null>
 	: GetSchemaForType<TColumn>;
 
+// Modified to pass the TypeScript property key to the mapping function
 type InsertColumnPropertySignatures<TTable extends Drizzle.Table> = {
 	[K in keyof Columns<TTable>]: MapInsertColumnToPropertySignature<
-		Columns<TTable>[K]
+		Columns<TTable>[K],
+		K & string // Pass the TypeScript property key (e.g., "createdAt")
 	>;
 };
 
