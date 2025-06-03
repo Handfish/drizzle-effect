@@ -7,24 +7,28 @@ import { Schema } from 'effect';
 // Core utility types - simplified
 type Columns<TTable extends Drizzle.Table> = TTable['_']['columns'];
 
-// Simplified column schema mapping with controlled JSON handling
-type ColumnSchema<TColumn extends Drizzle.Column> = TColumn['dataType'] extends 'custom' ? Schema.Schema<any>
-	: TColumn['dataType'] extends 'json' ? Schema.Schema<JsonValue> // Use simplified JsonValue
-	: TColumn extends { enumValues: [string, ...string[]] }
-	? Drizzle.Equal<TColumn['enumValues'], [string, ...string[]]> extends true ? Schema.Schema<string>
-	: Schema.Schema<TColumn['enumValues'][number]>
-	: TColumn['dataType'] extends 'bigint' ? Schema.Schema<bigint, bigint>
-	: TColumn['dataType'] extends 'number'
-	? TColumn['columnType'] extends `PgBigInt${number}` ? Schema.Schema<bigint, number>
-	: Schema.Schema<number, number>
-	: TColumn['dataType'] extends 'string' ? TColumn['columnType'] extends 'PgNumeric' ? Schema.Schema<number, string>
-	: TColumn['columnType'] extends 'PgUUID' ? Schema.Schema<string>
-	: TColumn['columnType'] extends 'PgDateString' ? Schema.Schema<Date, string>
-	: TColumn['columnType'] extends 'PgTimestampString' ? Schema.Schema<Date, string>
-	: Schema.Schema<string, string>
-	: TColumn['dataType'] extends 'boolean' ? Schema.Schema<boolean>
-	: TColumn['dataType'] extends 'date' ? Schema.Schema<Date>
-	: Schema.Schema<any>;
+type ColumnSchema<TColumn extends Drizzle.Column> =
+	TColumn['dataType'] extends 'custom' ? Schema.Schema<any> :
+	TColumn['dataType'] extends 'json' ? Schema.Schema<JsonValue> :
+	TColumn extends { enumValues: [string, ...string[]] } ?
+	Drizzle.Equal<TColumn['enumValues'], [string, ...string[]]> extends true ?
+	Schema.Schema<string> :
+	Schema.Schema<TColumn['enumValues'][number]> :
+	TColumn['dataType'] extends 'bigint' ? Schema.Schema<bigint, bigint> :
+	TColumn['dataType'] extends 'number' ?
+	TColumn['columnType'] extends `PgBigInt${number}` ? Schema.Schema<bigint, number> :
+	Schema.Schema<number, number> :
+	TColumn['columnType'] extends 'PgNumeric' ? Schema.Schema<number, string> :
+	TColumn['columnType'] extends 'PgUUID' ? Schema.Schema<string> :
+	TColumn['columnType'] extends 'PgDate' ?
+	TColumn extends { mode: 'string' } ? Schema.Schema<string, string> : Schema.Schema<Date, string> :
+	TColumn['columnType'] extends 'PgTimestamp' ?
+	TColumn extends { mode: 'string' } ? Schema.Schema<string, string> : Schema.Schema<Date, string> :
+	TColumn['dataType'] extends 'string' ? Schema.Schema<string, string> :
+	TColumn['dataType'] extends 'boolean' ? Schema.Schema<boolean> :
+	TColumn['dataType'] extends 'date' ?
+	TColumn extends { mode: 'string' } ? Schema.Schema<string> : Schema.Schema<Date> :
+	Schema.Schema<any>;
 
 // Simplified JSON types to prevent inference explosion
 type JsonPrimitive = string | number | boolean | null;
@@ -187,7 +191,11 @@ export function createSelectSchema<TTable extends Drizzle.Table, TRefine extends
 	return Schema.Struct(schemaEntries) as any;
 }
 
-// Column mapping function
+// Helper function to check if a column has a mode property
+function hasMode(column: any): column is { mode: string } {
+	return typeof column === 'object' && column !== null && 'mode' in column && typeof column.mode === 'string';
+}
+
 function mapColumnToSchema(column: Drizzle.Column): Schema.Schema<any, any> {
 	let type: Schema.Schema<any, any> | undefined;
 
@@ -203,7 +211,7 @@ function mapColumnToSchema(column: Drizzle.Column): Schema.Schema<any, any> {
 		} else if (column.dataType === 'custom') {
 			type = Schema.Any;
 		} else if (column.dataType === 'json') {
-			type = JsonValue; // Use non-recursive version
+			type = JsonValue;
 		} else if (column.dataType === 'array') {
 			type = Schema.Array(
 				mapColumnToSchema((column as DrizzlePg.PgArray<any, any>).baseColumn),
@@ -215,27 +223,42 @@ function mapColumnToSchema(column: Drizzle.Column): Schema.Schema<any, any> {
 		} else if (column.dataType === 'boolean') {
 			type = Schema.Boolean;
 		} else if (column.dataType === 'date') {
-			type = Schema.DateFromSelf;
+			type = hasMode(column) && column.mode === 'string'
+				? Schema.String
+				: Schema.DateFromSelf;
 		} else if (column.dataType === 'string') {
-			let sType = Schema.String;
-
-			if (
-				(Drizzle.is(column, DrizzlePg.PgChar)
-					|| Drizzle.is(column, DrizzlePg.PgVarchar)
-					|| Drizzle.is(column, DrizzleMysql.MySqlVarChar)
-					|| Drizzle.is(column, DrizzleMysql.MySqlVarBinary)
-					|| Drizzle.is(column, DrizzleMysql.MySqlChar)
-					|| Drizzle.is(column, DrizzleSqlite.SQLiteText))
-				&& typeof column.length === 'number'
-			) {
-				sType = sType.pipe(Schema.maxLength(column.length));
+			// Additional check: if it's a PgTimestamp or PgDate masquerading as string
+			if (Drizzle.is(column, DrizzlePg.PgTimestamp)) {
+				type = hasMode(column) && column.mode === 'string'
+					? Schema.String
+					: Schema.DateFromSelf;
+			} else if (Drizzle.is(column, DrizzlePg.PgDate)) {
+				type = hasMode(column) && column.mode === 'string'
+					? Schema.String
+					: Schema.DateFromSelf;
+			} else {
+				let sType = Schema.String;
+				if (
+					(Drizzle.is(column, DrizzlePg.PgChar)
+						|| Drizzle.is(column, DrizzlePg.PgVarchar)
+						|| Drizzle.is(column, DrizzleMysql.MySqlVarChar)
+						|| Drizzle.is(column, DrizzleMysql.MySqlVarBinary)
+						|| Drizzle.is(column, DrizzleMysql.MySqlChar)
+						|| Drizzle.is(column, DrizzleSqlite.SQLiteText))
+					&& typeof column.length === 'number'
+				) {
+					sType = sType.pipe(Schema.maxLength(column.length));
+				}
+				type = sType;
 			}
-
-			type = sType;
 		}
 	}
 
-	return type || Schema.Any;
+	if (!type) {
+		type = Schema.Any; // fallback
+	}
+
+	return type;
 }
 
 function isWithEnum(
