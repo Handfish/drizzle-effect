@@ -11,17 +11,17 @@ type Columns<TTable extends Drizzle.Table> = TTable['_']['columns'];
 type ColumnSchema<TColumn extends Drizzle.Column> = TColumn['dataType'] extends 'custom' ? Schema.Schema<any>
 	: TColumn['dataType'] extends 'json' ? Schema.Schema<JsonValue> // Use simplified JsonValue
 	: TColumn extends { enumValues: [string, ...string[]] }
-		? Drizzle.Equal<TColumn['enumValues'], [string, ...string[]]> extends true ? Schema.Schema<string>
-		: Schema.Schema<TColumn['enumValues'][number]>
+	? Drizzle.Equal<TColumn['enumValues'], [string, ...string[]]> extends true ? Schema.Schema<string>
+	: Schema.Schema<TColumn['enumValues'][number]>
 	: TColumn['dataType'] extends 'bigint' ? Schema.Schema<bigint, bigint>
 	: TColumn['dataType'] extends 'number'
-		? TColumn['columnType'] extends `PgBigInt${number}` ? Schema.Schema<bigint, number>
-		: Schema.Schema<number, number>
+	? TColumn['columnType'] extends `PgBigInt${number}` ? Schema.Schema<bigint, number>
+	: Schema.Schema<number, number>
 	: TColumn['dataType'] extends 'string' ? TColumn['columnType'] extends 'PgNumeric' ? Schema.Schema<number, string>
-		: TColumn['columnType'] extends 'PgUUID' ? Schema.Schema<string>
-		: TColumn['columnType'] extends 'PgDateString' ? Schema.Schema<Date, string>
-		: TColumn['columnType'] extends 'PgTimestampString' ? Schema.Schema<Date, string>
-		: Schema.Schema<string, string>
+	: TColumn['columnType'] extends 'PgUUID' ? Schema.Schema<string>
+	: TColumn['columnType'] extends 'PgDateString' ? Schema.Schema<Date, string>
+	: TColumn['columnType'] extends 'PgTimestampString' ? Schema.Schema<Date, string>
+	: Schema.Schema<string, string>
 	: TColumn['dataType'] extends 'boolean' ? Schema.Schema<boolean>
 	: TColumn['dataType'] extends 'date' ? Schema.Schema<Date>
 	: Schema.Schema<any>;
@@ -84,14 +84,14 @@ type InsertProperty<TColumn extends Drizzle.Column, TKey extends string> = TColu
 		never
 	>
 	: TColumn['_']['hasDefault'] extends true ? Schema.PropertySignature<
-			'?:',
-			Schema.Schema.Type<ColumnSchema<TColumn>> | undefined,
-			TKey,
-			'?:',
-			Schema.Schema.Encoded<ColumnSchema<TColumn>> | undefined,
-			true,
-			never
-		>
+		'?:',
+		Schema.Schema.Type<ColumnSchema<TColumn>> | undefined,
+		TKey,
+		'?:',
+		Schema.Schema.Encoded<ColumnSchema<TColumn>> | undefined,
+		true,
+		never
+	>
 	: ColumnSchema<TColumn>;
 
 type SelectProperty<TColumn extends Drizzle.Column> = TColumn['_']['notNull'] extends false
@@ -117,10 +117,10 @@ type BuildSelectSchema<TTable extends Drizzle.Table, TRefine = {}> = Schema.Stru
 >;
 
 // Clean API functions
-export function createInsertSchema<TTable extends Drizzle.Table>(
+export function createInsertSchema<TTable extends Drizzle.Table, TRefine extends TableRefine<TTable> = {}>(
 	table: TTable,
-	refine?: TableRefine<TTable>,
-): BuildInsertSchema<TTable> {
+	refine?: TRefine,
+): BuildInsertSchema<TTable, TRefine> {
 	const columns = Drizzle.getTableColumns(table);
 	const columnEntries = Object.entries(columns);
 
@@ -154,10 +154,10 @@ export function createInsertSchema<TTable extends Drizzle.Table>(
 	return Schema.Struct(schemaEntries) as any;
 }
 
-export function createSelectSchema<TTable extends Drizzle.Table>(
+export function createSelectSchema<TTable extends Drizzle.Table, TRefine extends TableRefine<TTable> = {}>(
 	table: TTable,
-	refine?: TableRefine<TTable>,
-): BuildSelectSchema<TTable> {
+	refine?: TRefine,
+): BuildSelectSchema<TTable, TRefine> {
 	const columns = Drizzle.getTableColumns(table);
 	const columnEntries = Object.entries(columns);
 
@@ -185,23 +185,6 @@ export function createSelectSchema<TTable extends Drizzle.Table>(
 	}
 
 	return Schema.Struct(schemaEntries) as any;
-}
-
-// Alternative builder pattern API (even cleaner)
-export class SchemaBuilder<TTable extends Drizzle.Table> {
-	constructor(private table: TTable) {}
-
-	insert(refine?: TableRefine<TTable>) {
-		return createInsertSchema(this.table, refine);
-	}
-
-	select(refine?: TableRefine<TTable>) {
-		return createSelectSchema(this.table, refine);
-	}
-}
-
-export function schema<TTable extends Drizzle.Table>(table: TTable) {
-	return new SchemaBuilder(table);
 }
 
 // Column mapping function
